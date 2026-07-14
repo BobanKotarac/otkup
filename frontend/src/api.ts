@@ -178,6 +178,15 @@ export interface LiveDashboard {
   totals: DashboardStats;
 }
 
+function priznanicaQuery(params: { producer_code: string; date_from: string; date_to: string; document_no: number }) {
+  return new URLSearchParams({
+    producer_code: params.producer_code,
+    date_from: params.date_from,
+    date_to: params.date_to,
+    document_no: String(params.document_no),
+  });
+}
+
 export const api = {
   stats: () => request<DashboardStats>("/api/stats"),
 
@@ -230,15 +239,13 @@ export const api = {
 
   search: (q: string) => request<{ query: string; results: SearchResultItem[] }>(`/api/search?q=${encodeURIComponent(q)}`),
 
-  priznanicaPdfUrl: (params: { producer_code: string; date_from: string; date_to: string; document_no: number }) => {
-    const q = new URLSearchParams({
-      producer_code: params.producer_code,
-      date_from: params.date_from,
-      date_to: params.date_to,
-      document_no: String(params.document_no),
-    });
-    return `${API_BASE}/api/reports/priznanica/pdf?${q}`;
-  },
+  priznanicaPdfUrl: (params: { producer_code: string; date_from: string; date_to: string; document_no: number }) =>
+    `${API_BASE}/api/reports/priznanica/pdf?${priznanicaQuery(params)}`,
+
+  printPriznanica: (params: { producer_code: string; date_from: string; date_to: string; document_no: number }) =>
+    request<{ ok: boolean; message: string }>(`/api/reports/priznanica/print?${priznanicaQuery(params)}`, {
+      method: "POST",
+    }),
 
   listDebits: (params?: Record<string, string>) => {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";

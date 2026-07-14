@@ -17,16 +17,30 @@ export function Field({ label, children }: FieldProps) {
 interface FormActionsProps {
   onSave: () => void;
   onCancel?: () => void;
+  onSecondary?: () => void;
   saving?: boolean;
   saveLabel?: string;
+  secondaryLabel?: string;
 }
 
-export function FormActions({ onSave, onCancel, saving, saveLabel = "Sačuvaj" }: FormActionsProps) {
+export function FormActions({
+  onSave,
+  onCancel,
+  onSecondary,
+  saving,
+  saveLabel = "Sačuvaj",
+  secondaryLabel = "Otkaži",
+}: FormActionsProps) {
   return (
     <div className="form-actions">
       <button type="button" className="btn-primary" onClick={onSave} disabled={saving}>
         {saving ? "Čuvanje..." : saveLabel}
       </button>
+      {onSecondary && (
+        <button type="button" className="btn-secondary" onClick={onSecondary} disabled={saving}>
+          {secondaryLabel}
+        </button>
+      )}
       {onCancel && (
         <button type="button" className="btn-secondary" onClick={onCancel}>
           Otkaži

@@ -29,6 +29,7 @@ from app.schemas import (
 )
 from app.services.codes import purchase_total
 from app.services.pdf_priznanica import build_priznanica_pdf
+from app.services.system_print import PrintError, print_pdf_bytes
 from app.services.validation import has_blocking_errors, validate_fruit_purchase
 
 router = APIRouter(prefix="/api", tags=["features"])
@@ -186,16 +187,16 @@ def live_dashboard(db: Session = Depends(get_db)):
     )
 
 
-@router.get("/reports/priznanica/pdf")
-def priznanica_pdf(
+def _build_priznanica_or_404(
+    db: Session,
+    *,
     producer_code: str,
     date_from: date,
     date_to: date,
-    document_no: int = 1,
-    db: Session = Depends(get_db),
-):
+    document_no: int,
+) -> bytes:
     try:
-        pdf_bytes = build_priznanica_pdf(
+        return build_priznanica_pdf(
             db,
             producer_code=producer_code,
             date_from=date_from,
@@ -205,9 +206,49 @@ def priznanica_pdf(
     except ValueError as exc:
         raise HTTPException(404, str(exc)) from exc
 
+
+@router.get("/reports/priznanica/pdf")
+def priznanica_pdf(
+    producer_code: str,
+    date_from: date,
+    date_to: date,
+    document_no: int = 1,
+    db: Session = Depends(get_db),
+):
+    pdf_bytes = _build_priznanica_or_404(
+        db,
+        producer_code=producer_code,
+        date_from=date_from,
+        date_to=date_to,
+        document_no=document_no,
+    )
     filename = f"priznanica_{producer_code}_{date_to.isoformat()}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.post("/reports/priznanica/print")
+def priznanica_print(
+    producer_code: str,
+    date_from: date,
+    date_to: date,
+    document_no: int = 1,
+    db: Session = Depends(get_db),
+):
+    pdf_bytes = _build_priznanica_or_404(
+        db,
+        producer_code=producer_code,
+        date_from=date_from,
+        date_to=date_to,
+        document_no=document_no,
+    )
+    filename = f"priznanica_{producer_code}_{date_to.isoformat()}"
+    try:
+        print_pdf_bytes(pdf_bytes, job_name=filename)
+    except PrintError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+    return {"ok": True, "message": "Priznanica poslata na podrazumevani štampač."}

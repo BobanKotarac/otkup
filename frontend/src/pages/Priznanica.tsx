@@ -1,9 +1,51 @@
 import { useEffect, useState } from "react";
 import { api, type Producer } from "../api";
-import { ErrorMessage, Field, FormActions } from "../components/Form";
+import { ErrorMessage, Field, FormActions, SuccessMessage } from "../components/Form";
 
 const today = new Date().toISOString().slice(0, 10);
 const monthStart = today.slice(0, 8) + "01";
+
+type PriznanicaParams = {
+  producer_code: string;
+  date_from: string;
+  date_to: string;
+  document_no: number;
+};
+
+function printPdfInBrowser(url: string) {
+  return fetch(url)
+    .then((res) => {
+      if (!res.ok) throw new Error("PDF nije dostupan.");
+      return res.blob();
+    })
+    .then((blob) => new Promise<void>((resolve, reject) => {
+      const blobUrl = URL.createObjectURL(blob);
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      iframe.src = blobUrl;
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+          resolve();
+        } catch (err) {
+          reject(err);
+        } finally {
+          window.setTimeout(() => {
+            URL.revokeObjectURL(blobUrl);
+            iframe.remove();
+          }, 60_000);
+        }
+      };
+      iframe.onerror = () => reject(new Error("Pregledač nije mogao da učita PDF."));
+      document.body.appendChild(iframe);
+    }));
+}
 
 export function PriznanicaPage() {
   const [producers, setProducers] = useState<Producer[]>([]);
@@ -12,6 +54,8 @@ export function PriznanicaPage() {
   const [dateTo, setDateTo] = useState(today);
   const [documentNo, setDocumentNo] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [printing, setPrinting] = useState(false);
 
   useEffect(() => {
     api.listProducers().then((p) => {
@@ -20,22 +64,57 @@ export function PriznanicaPage() {
     });
   }, []);
 
-  function download() {
-    setError(null);
-    if (!producerCode) { setError("Izaberite proizvođača."); return; }
-    window.open(api.priznanicaPdfUrl({
+  function params(): PriznanicaParams | null {
+    if (!producerCode) return null;
+    return {
       producer_code: producerCode,
       date_from: dateFrom,
       date_to: dateTo,
       document_no: documentNo,
-    }), "_blank");
+    };
+  }
+
+  function download() {
+    setError(null);
+    setSuccess(null);
+    const p = params();
+    if (!p) {
+      setError("Izaberite proizvođača.");
+      return;
+    }
+    window.open(api.priznanicaPdfUrl(p), "_blank");
+  }
+
+  async function printDoc() {
+    setError(null);
+    setSuccess(null);
+    const p = params();
+    if (!p) {
+      setError("Izaberite proizvođača.");
+      return;
+    }
+
+    setPrinting(true);
+    try {
+      const result = await api.printPriznanica(p);
+      setSuccess(result.message);
+    } catch (err) {
+      try {
+        await printPdfInBrowser(api.priznanicaPdfUrl(p));
+        setSuccess("Otvoren dijalog za štampu u pregledaču.");
+      } catch {
+        setError(err instanceof Error ? err.message : "Štampanje nije uspelo.");
+      }
+    } finally {
+      setPrinting(false);
+    }
   }
 
   return (
     <div className="panel">
-      <h2>Priznanica (PDF)</h2>
+      <h2>Priznanica</h2>
       <p className="subtitle">
-        Generiše priznanicu za proizvođača — isti dokument koji je stari Clipper štampao na kraju otkupa.
+        Štampa priznanicu za proizvođača na podrazumevani štampač ovog računara (isti dokument kao stari Clipper).
       </p>
       <div className="form-grid">
         <Field label="Proizvođač *">
@@ -47,7 +126,14 @@ export function PriznanicaPage() {
         <Field label="Do datuma"><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></Field>
         <Field label="Broj priznanice"><input type="number" min={1} value={documentNo} onChange={(e) => setDocumentNo(Number(e.target.value))} /></Field>
       </div>
-      <FormActions onSave={download} saveLabel="Preuzmi PDF" />
+      <FormActions
+        onSave={printDoc}
+        saveLabel="Štampaj"
+        saving={printing}
+        onSecondary={download}
+        secondaryLabel="Preuzmi PDF"
+      />
+      <SuccessMessage message={success} />
       <ErrorMessage message={error} />
     </div>
   );

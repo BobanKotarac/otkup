@@ -60,7 +60,7 @@ const SUB_MENUS: Record<MainMenu, { id: View; label: string; message: string }[]
     { id: "report-purchases", label: "Pregled otkupa", message: "Pregled otkupa voća" },
     { id: "report-debits", label: "Pregled zaduženja", message: "Pregled zaduženja robom" },
     { id: "report-balance", label: "Pregled salda", message: "Saldo otkupa i zaduženja" },
-    { id: "priznanica", label: "Priznanica (PDF)", message: "Štampa priznanice za proizvođača" },
+    { id: "priznanica", label: "Priznanica", message: "Štampa priznanice za proizvođača" },
   ],
   ambalaza: [
     { id: "packaging", label: "Ambalaža", message: "Unos ambalaže" },
