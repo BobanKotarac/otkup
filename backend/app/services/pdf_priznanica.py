@@ -13,11 +13,27 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy.orm import Session
 
 from app.models import Company, Fruit, FruitPurchase, Good, GoodsDebit, Producer
-from app.services.codes import purchase_total
+from app.services.pdf_fonts import FONT_BOLD, FONT_REGULAR, ensure_pdf_fonts
 
 
 def _fmt(value: float, decimals: int = 2) -> str:
     return f"{value:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _table_commands(*, bold_last_row: bool = False, header: bool = True) -> list[tuple]:
+    rules: list[tuple] = [
+        ("FONTNAME", (0, 0), (-1, -1), FONT_REGULAR),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+    ]
+    if header:
+        rules.extend([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e3f2fd")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#0d47a1")),
+            ("FONTNAME", (0, 0), (-1, 0), FONT_BOLD),
+        ])
+    if bold_last_row:
+        rules.append(("FONTNAME", (0, -1), (-1, -1), FONT_BOLD))
+    return rules
 
 
 def build_priznanica_pdf(
@@ -28,6 +44,8 @@ def build_priznanica_pdf(
     date_to: date,
     document_no: int = 1,
 ) -> bytes:
+    ensure_pdf_fonts()
+
     company = db.query(Company).first()
     producer = db.query(Producer).filter_by(code=producer_code).first()
     if not producer:
@@ -55,8 +73,14 @@ def build_priznanica_pdf(
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=1.5 * cm)
     styles = getSampleStyleSheet()
-    title_style = ParagraphStyle("Title", parent=styles["Heading2"], alignment=1, textColor=colors.HexColor("#0d47a1"))
-    normal = styles["Normal"]
+    title_style = ParagraphStyle(
+        "Title",
+        parent=styles["Heading2"],
+        fontName=FONT_BOLD,
+        alignment=1,
+        textColor=colors.HexColor("#0d47a1"),
+    )
+    normal = ParagraphStyle("Normal", parent=styles["Normal"], fontName=FONT_REGULAR)
     story = []
 
     cname = company.name if company else "OTKUP"
@@ -84,7 +108,6 @@ def build_priznanica_pdf(
     story.append(Paragraph("Vrsta i količina isporučenih dobara", normal))
     story.append(Spacer(1, 0.2 * cm))
 
-    # Aggregate purchases by fruit and class
     lines: list[list[str]] = [["Rb", "Vrsta dobra", "J.m.", "Količina", "Cena", "Iznos"]]
     row_num = 0
     fruit_total = 0.0
@@ -125,10 +148,7 @@ def build_priznanica_pdf(
 
     table = Table(lines, colWidths=[1 * cm, 6.5 * cm, 1.2 * cm, 2.2 * cm, 2.2 * cm, 2.5 * cm])
     table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#e3f2fd")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#0d47a1")),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        *_table_commands(),
         ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
         ("ALIGN", (3, 1), (-1, -1), "RIGHT"),
     ]))
@@ -145,14 +165,13 @@ def build_priznanica_pdf(
     ]
     st = Table(summary, colWidths=[12 * cm, 4 * cm])
     st.setStyle(TableStyle([
+        *_table_commands(header=False, bold_last_row=True),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
         ("LINEBELOW", (0, 0), (-1, -2), 0.25, colors.lightgrey),
     ]))
     story.append(st)
     story.append(Spacer(1, 0.3 * cm))
 
-    # Goods debits (akontacija)
     goods_cash = 0.0
     goods_goods = 0.0
     for d in debits:
@@ -173,15 +192,15 @@ def build_priznanica_pdf(
     ]
     at = Table(akont, colWidths=[12 * cm, 4 * cm])
     at.setStyle(TableStyle([
+        *_table_commands(header=False, bold_last_row=True),
         ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
         ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#e3f2fd")),
     ]))
     story.append(at)
     story.append(Spacer(1, 1 * cm))
     story.append(Paragraph(f"Tekući račun: {producer.bank_account}", normal))
     story.append(Spacer(1, 1.5 * cm))
-    story.append(Paragraph("Obracun izvršio: __________________ &nbsp;&nbsp;&nbsp;&nbsp; Potpis primaoca: __________________", normal))
+    story.append(Paragraph("Obračun izvršio: __________________ &nbsp;&nbsp;&nbsp;&nbsp; Potpis primaoca: __________________", normal))
 
     doc.build(story)
     return buffer.getvalue()
