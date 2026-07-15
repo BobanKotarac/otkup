@@ -26,10 +26,14 @@ if not errorlevel 1 (
     goto :have_python
 )
 echo Error: Python 3 not found.
-echo Install Python 3.12 from https://www.python.org/downloads/
+echo Install Python 3.12 or 3.13 from https://www.python.org/downloads/
 goto :fail
 
 :have_python
+echo.
+
+REM --- Report 32 or 64 bit (both supported) ---
+%PY% -c "import struct; b=struct.calcsize('P')*8; print('Python', b, 'bit')" 2>> "%LOG%"
 echo.
 
 if exist frontend\dist\index.html (
@@ -42,40 +46,58 @@ if exist frontend\dist\index.html (
 cd backend
 if errorlevel 1 goto :fail
 
-if not exist wheels\*.whl (
-    echo Error: backend\wheels missing. Run: git pull
+if not exist wheels (
+    echo Error: backend\wheels folder missing. Run: git pull
     goto :fail
 )
+
+dir /b wheels\*.whl >nul 2>&1
+if errorlevel 1 (
+    echo Error: backend\wheels is empty. Run: git pull
+    goto :fail
+)
+
+echo Wheels folder OK.
+echo.
 
 echo Checking pip...
 %PY% -m pip --version >> "%LOG%" 2>&1
 if errorlevel 1 (
-    %PY% -m ensurepip --upgrade >> "%LOG%" 2>&1
+    echo Installing pip...
+    %PY% -m ensurepip --upgrade
 )
 
 echo.
 echo Installing packages from bundled wheels...
-echo ^(No compiler, no download - needs Python 3.11 / 3.12 / 3.13 64-bit^)
+echo 32-bit and 64-bit Windows both supported.
 echo.
 
-REM ONLY offline install - never compile from source (avoids Visual C++ / greenlet errors)
-%PY% -m pip install --user --no-index --find-links=wheels --only-binary=:all: -r requirements-windows.txt >> "%LOG%" 2>&1
-if errorlevel 1 (
-    echo.
-    echo --- install failed ---
-    powershell -NoProfile -Command "Get-Content '%LOG%' -Tail 20"
-    goto :pip_fail
-)
+REM Try 1: offline, user install
+%PY% -m pip install --user --no-index --find-links=wheels --only-binary=:all: -r requirements-windows.txt
+if not errorlevel 1 goto :packages_ok
 
+echo.
+echo Retry without --user...
+%PY% -m pip install --no-index --find-links=wheels --only-binary=:all: -r requirements-windows.txt
+if not errorlevel 1 goto :packages_ok
+
+echo.
+echo Retry allowing pure-python wheels...
+%PY% -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+if not errorlevel 1 goto :packages_ok
+
+goto :pip_fail
+
+:packages_ok
+echo.
 echo Packages OK.
-echo.
 echo Starting http://localhost:8000
 echo Leave this window open. Ctrl+C to stop.
 echo.
 
 %PY% -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 if errorlevel 1 (
-    echo Error: port 8000 busy or server crashed. See %LOG%
+    echo Error: port 8000 busy or server crashed.
     goto :fail
 )
 goto :eof
@@ -86,17 +108,18 @@ echo ========================================
 echo   Install failed
 echo ========================================
 echo.
-echo Most likely: wrong Python version.
+echo Python %PY% — versions 3.11 / 3.12 / 3.13 supported ^(32 or 64 bit^).
 echo.
-echo Need Python 3.11, 3.12, or 3.13  ^(64-bit^), from python.org
-echo Check version:  py -3 --version
-echo List installed:  py -0p
+echo Common causes:
+echo   1. backend\wheels not downloaded - run: git pull
+echo   2. Old pip - run: py -3 -m pip install --upgrade pip
 echo.
-echo If you have 3.12 installed but default is older:
-echo   py -3.12 -m pip install --user --no-index --find-links=wheels -r requirements-windows.txt
-echo   py -3.12 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+echo Manual test ^(copy/paste in Command Prompt^):
+echo   cd %CD%
+echo   py -3 -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+echo   py -3 -m uvicorn app.main:app --port 8000
 echo.
-echo Full log: %LOG%
+echo Send otkup-start.log if still stuck.
 goto :fail
 
 :fail

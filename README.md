@@ -67,7 +67,7 @@ cd otkup
 scripts\start.bat
 ```
 
-Or double-click **`START-OTKUP.bat`** in the project folder (easier — window stays open if something fails).
+Or double-click **`START-OTKUP.bat`**. If problems: run **`scripts\check-windows.bat`** for a full diagnostic.
 
 Open **http://localhost:8000** in Chrome or Edge.
 
@@ -198,7 +198,7 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 | Problem | Solution |
 |---------|----------|
 | `npm install` fails (Windows) | Use latest code with pre-built `frontend/dist` — only Python needed |
-| `Microsoft Visual C++ 14` or `greenlet` wheel error | Run `git pull` — installs **only** from `backend/wheels/` (no compile). Need **Python 3.11–3.13 64-bit**. Check: `py -3 --version` |
+| `Microsoft Visual C++ 14` or `greenlet` wheel error | Run `git pull` — uses bundled wheels. Works on **32-bit and 64-bit** Windows with Python 3.11–3.13 |
 | `start.bat` window closes immediately (Windows) | Double-click **`START-OTKUP.bat`** — errors stay on screen. Check **`otkup-start.log`** |
 | `env: bash\r: No such file or directory` (Mac) | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |
