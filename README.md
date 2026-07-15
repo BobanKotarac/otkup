@@ -22,9 +22,19 @@ Install these once on the machine:
 
 ## Quick start (single machine — recommended)
 
-One command starts the UI and API together on **http://localhost:8000**.
+One command builds the UI and starts the server on **http://localhost:8000**.
 
 ### Mac / Linux
+
+If you already have the project:
+
+```bash
+cd otkup
+chmod +x scripts/start.sh   # only needed once
+./scripts/start.sh
+```
+
+First time (clone from GitHub):
 
 ```bash
 git clone https://github.com/BobanKotarac/otkup.git
@@ -32,6 +42,22 @@ cd otkup
 chmod +x scripts/start.sh
 ./scripts/start.sh
 ```
+
+When it works, the terminal shows:
+```
+Starting Otkup on http://localhost:8000
+INFO:     Uvicorn running on http://0.0.0.0:8000
+```
+
+Open **http://localhost:8000** in Chrome or Edge.
+
+**Stop the server:** `Ctrl+C` in the terminal.
+
+**Port 8000 busy?** Use another port:
+```bash
+PORT=8001 ./scripts/start.sh
+```
+Then open **http://localhost:8001**.
 
 ### Windows
 
@@ -44,8 +70,6 @@ scripts\start.bat
 Open **http://localhost:8000** in Chrome or Edge.
 
 The first run installs dependencies and may take a few minutes. Later runs are faster.
-
-**Stop the server:** press `Ctrl+C` in the terminal, or close the window.
 
 **Data is stored in:** `backend/otkup.db` (SQLite, single-machine use)
 
@@ -125,7 +149,7 @@ Open http://localhost:5173
 | Master data (locations, producers, fruit, goods) | Unos |
 | Live dashboard | Ostalo → Live pregled |
 | Setup wizard | Ostalo → Početno podešavanje |
-| PDF Priznanica | Izveštaji → Priznanica (PDF) |
+| PDF Priznanica + direct print | Izveštaji → Priznanica |
 | DBF import | Ostalo → Import DBF |
 | Global search | Search bar (top right) |
 
@@ -166,11 +190,33 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 
 | Problem | Solution |
 |---------|----------|
+| `env: bash\r: No such file or directory` | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Reinstall Python with **Add to PATH** checked |
 | `npm` not found | Install Node.js LTS and restart terminal |
-| Port 8000 already in use | Stop other server or change port in start script |
+| Port 8000 already in use | Another app is using that port. Stop it: `lsof -ti :8000 \| xargs kill` — or run `PORT=8001 ./scripts/start.sh` |
+| Wrong app opens on localhost:8000 | Port 8000 is taken by a different project — use `PORT=8001 ./scripts/start.sh` |
 | Blank page after start | Wait for build to finish; check terminal for errors |
 | Backend not reachable (dev mode) | Ensure backend runs on port 8000 |
+
+### Manual start (if the script fails)
+
+**Terminal 1 — backend:**
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+**Terminal 2 — frontend (dev UI):**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173** (dev) or **http://localhost:8000** (after `npm run build` in frontend).
 
 ---
 
