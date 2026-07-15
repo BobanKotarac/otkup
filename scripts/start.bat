@@ -72,21 +72,27 @@ echo Installing packages from bundled wheels...
 echo 32-bit and 64-bit Windows both supported.
 echo.
 
-REM Try 1: offline, user install
-%PY% -m pip install --user --no-index --find-links=wheels --only-binary=:all: -r requirements-windows.txt
+call :install_wheels --user
 if not errorlevel 1 goto :packages_ok
 
 echo.
 echo Retry without --user...
-%PY% -m pip install --no-index --find-links=wheels --only-binary=:all: -r requirements-windows.txt
-if not errorlevel 1 goto :packages_ok
-
-echo.
-echo Retry allowing pure-python wheels...
-%PY% -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+call :install_wheels
 if not errorlevel 1 goto :packages_ok
 
 goto :pip_fail
+
+:install_wheels
+if "%~1"=="--user" (
+    set "PIPFLAGS=--user"
+) else (
+    set "PIPFLAGS="
+)
+%PY% -m pip install %PIPFLAGS% --no-index --find-links=wheels --only-binary=:all: -r requirements-windows-core.txt
+if errorlevel 1 exit /b 1
+REM SQLAlchemy auto-requires greenlet on 32-bit — skip deps (not needed for SQLite)
+%PY% -m pip install %PIPFLAGS% --no-index --find-links=wheels --only-binary=:all: --no-deps sqlalchemy==2.0.51
+exit /b %errorlevel%
 
 :packages_ok
 echo.
@@ -116,7 +122,8 @@ echo   2. Old pip - run: py -3 -m pip install --upgrade pip
 echo.
 echo Manual test ^(copy/paste in Command Prompt^):
 echo   cd %CD%
-echo   py -3 -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+echo   py -3 -m pip install --no-index --find-links=wheels -r requirements-windows-core.txt
+echo   py -3 -m pip install --no-index --find-links=wheels --no-deps sqlalchemy==2.0.51
 echo   py -3 -m uvicorn app.main:app --port 8000
 echo.
 echo Send otkup-start.log if still stuck.

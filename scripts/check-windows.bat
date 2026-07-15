@@ -35,7 +35,8 @@ echo.
 
 echo [6] Test install
 cd backend
-py -3 -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+py -3 -m pip install --no-index --find-links=wheels --only-binary=:all: -r requirements-windows-core.txt
+py -3 -m pip install --no-index --find-links=wheels --only-binary=:all: --no-deps sqlalchemy==2.0.51
 if errorlevel 1 (
     echo   INSTALL: FAILED ^(see errors above^)
 ) else (

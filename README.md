@@ -198,7 +198,7 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 | Problem | Solution |
 |---------|----------|
 | `npm install` fails (Windows) | Use latest code with pre-built `frontend/dist` — only Python needed |
-| `Microsoft Visual C++ 14` or `greenlet` wheel error | Run `git pull` — uses bundled wheels. Works on **32-bit and 64-bit** Windows with Python 3.11–3.13 |
+| `greenlet` requirement error (32-bit Windows) | Run `git pull` — latest `start.bat` installs SQLAlchemy without greenlet ^(not needed^) |
 | `start.bat` window closes immediately (Windows) | Double-click **`START-OTKUP.bat`** — errors stay on screen. Check **`otkup-start.log`** |
 | `env: bash\r: No such file or directory` (Mac) | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |

@@ -1,5 +1,5 @@
-# Windows offline install — wheels in backend/wheels/ (32-bit and 64-bit)
-# Note: greenlet omitted — not needed for SQLite sync mode
+# Windows offline install — see requirements-windows-core.txt + sqlalchemy --no-deps in start.bat
+# SQLAlchemy pulls greenlet on 32-bit Windows but greenlet has no 32-bit wheel — app does not need it
 fastapi==0.139.0
 uvicorn==0.51.0
 sqlalchemy==2.0.51
