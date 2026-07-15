@@ -24,9 +24,13 @@ export function PackagingPage() {
 
   useEffect(() => {
     api.listProducers().then((all) => {
-      if (!form.location_code) { setProducers(all); return; }
-      const filtered = all.filter((p) => p.location_code === form.location_code);
-      setProducers(filtered.length > 0 ? filtered : all);
+      const sorted = form.location_code
+        ? [
+            ...all.filter((p) => p.location_code === form.location_code),
+            ...all.filter((p) => p.location_code !== form.location_code),
+          ]
+        : all;
+      setProducers(sorted);
     });
   }, [form.location_code]);
 

@@ -43,23 +43,23 @@ export function FruitPurchasePage() {
   const load = useCallback(() => {
     api.listLocations().then(setLocations);
     api.listFruits().then(setFruits);
+    api.listProducers().then((all) => {
+      const sorted = form.location_code
+        ? [
+            ...all.filter((p) => p.location_code === form.location_code),
+            ...all.filter((p) => p.location_code !== form.location_code),
+          ]
+        : all;
+      setProducers(sorted);
+      setProducerHint(
+        Boolean(form.location_code) &&
+        all.some((p) => p.location_code !== form.location_code),
+      );
+    });
     api.listPurchases({ date_from: form.purchase_date, date_to: form.purchase_date }).then(setPurchases).catch((e: Error) => setError(e.message));
-  }, [form.purchase_date]);
+  }, [form.purchase_date, form.location_code]);
 
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    api.listProducers().then((all) => {
-      if (!form.location_code) {
-        setProducers(all);
-        setProducerHint(false);
-        return;
-      }
-      const filtered = all.filter((p) => p.location_code === form.location_code);
-      setProducers(filtered.length > 0 ? filtered : all);
-      setProducerHint(filtered.length === 0 && all.length > 0);
-    });
-  }, [form.location_code]);
 
   useEffect(() => {
     if (!form.location_code && locations.length) {
@@ -166,7 +166,7 @@ export function FruitPurchasePage() {
       </div>
 
       {producerHint && (
-        <p className="hint">Nema proizvođača za izabrano mesto — prikazana su sva mesta. Proverite mesto kod proizvođača u šifarniku.</p>
+        <p className="hint">Prikazani su svi proizvođači — proverite otkupno mesto kod onih sa drugim mestom u šifarniku.</p>
       )}
 
       <h3>Količine (kg)</h3>
