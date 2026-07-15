@@ -23,73 +23,82 @@ if not errorlevel 1 (
 echo Error: Python 3 not found.
 echo Install from https://www.python.org/downloads/
 echo Check "Add python.exe to PATH" during install.
-echo On many PCs you can run: py -3
 goto :fail
 
 :have_python
 echo Python OK.
 
-REM --- Node.js / npm ---
-where npm >nul 2>&1
-if errorlevel 1 (
-    echo Error: npm not found. Node.js is not installed or not on PATH.
-    echo Install Node.js LTS from https://nodejs.org
-    echo Then close this window, restart the computer, and run start.bat again.
-    goto :fail
+REM --- Frontend: use pre-built UI if available (no Node.js needed) ---
+if exist frontend\dist\index.html (
+    echo Frontend OK ^(pre-built, no npm needed^).
+    goto :start_backend
 )
-echo Node.js OK.
+
+echo Pre-built frontend not found — building with npm...
+echo Node.js 20.19+ or 22.12+ is required for this step.
 echo.
 
-echo Installing frontend dependencies...
+where npm >nul 2>&1
+if errorlevel 1 (
+    echo Error: npm not found.
+    echo Install Node.js 22 LTS from https://nodejs.org then restart the PC.
+    echo Or ask for a project copy that includes frontend\dist already built.
+    goto :fail
+)
+
+for /f "delims=" %%v in ('node --version 2^>nul') do set NODEVER=%%v
+echo Node version: %NODEVER%
+
 cd frontend
+if errorlevel 1 goto :fail
+
+echo Running npm install...
+call npm install --no-audit --no-fund
 if errorlevel 1 (
-    echo Error: frontend folder not found. Are you in the otkup project?
-    goto :fail
-)
-call npm install
-if errorlevel 1 (
+    echo.
     echo Error: npm install failed.
+    echo Run scripts\doctor.bat to save a log file and see details.
+    echo Common fixes:
+    echo   - Install Node.js 22 LTS from https://nodejs.org
+    echo   - Restart the computer after install
+    echo   - Run Command Prompt as Administrator once
     goto :fail
 )
+
 call npm run build
 if errorlevel 1 (
     echo Error: frontend build failed.
+    echo Node.js is probably too old. Need 20.19+ or 22.12+.
+    echo Install Node.js 22 LTS from https://nodejs.org
     goto :fail
 )
+cd ..
 
+:start_backend
 echo.
 echo Starting Otkup on http://localhost:8000
 echo Leave this window open while using the app.
 echo Stop the server with Ctrl+C.
 echo.
-cd ..\backend
+
+cd backend
 if errorlevel 1 goto :fail
 
 if not exist .venv (
     echo Creating Python virtual environment...
     %PY% -m venv .venv
-    if errorlevel 1 (
-        echo Error: could not create virtual environment.
-        goto :fail
-    )
+    if errorlevel 1 goto :fail
 )
 
 call .venv\Scripts\activate.bat
-if errorlevel 1 (
-    echo Error: could not activate virtual environment.
-    goto :fail
-)
+if errorlevel 1 goto :fail
 
 pip install -r requirements.txt -q
-if errorlevel 1 (
-    echo Error: pip install failed.
-    goto :fail
-)
+if errorlevel 1 goto :fail
 
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 if errorlevel 1 (
-    echo Error: server stopped or failed to start.
-    echo If port 8000 is busy, close the other program using it and try again.
+    echo Error: server stopped or port 8000 is busy.
     goto :fail
 )
 

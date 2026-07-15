@@ -15,7 +15,7 @@ Install these once on the machine:
 | Tool | Mac | Windows |
 |------|-----|---------|
 | **Python 3.11+** | [python.org](https://www.python.org/downloads/) or `brew install python` | [python.org](https://www.python.org/downloads/) — check **"Add Python to PATH"**. Run with `py -3` if `python` is not found |
-| **Node.js 18+** (LTS) | [nodejs.org](https://nodejs.org) or `brew install node` | [nodejs.org](https://nodejs.org) |
+| **Node.js 22+ (LTS)** | [nodejs.org](https://nodejs.org) or `brew install node` | [nodejs.org](https://nodejs.org) — **only needed to rebuild the UI**. Normal use on Windows needs **Python only** if `frontend/dist` is included |
 | **Git** | `brew install git` | [git-scm.com](https://git-scm.com/download/win) |
 
 ---
@@ -71,7 +71,9 @@ Or double-click **`START-OTKUP.bat`** in the project folder (easier — window s
 
 Open **http://localhost:8000** in Chrome or Edge.
 
-**Requirements on Windows:** Python 3 (`py -3`) and Node.js (`npm`) must be installed first. See [Requirements](#requirements).
+**Requirements on Windows:** **Python 3** is enough for daily use (`py -3`). Node.js is only needed if you rebuild the frontend yourself.
+
+**If `npm install` fails:** pull the latest version — the repo includes a pre-built UI in `frontend/dist`, so npm is skipped automatically.
 
 The first run installs dependencies and may take a few minutes. Later runs are faster.
 
@@ -195,8 +197,8 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 
 | Problem | Solution |
 |---------|----------|
-| `start.bat` window closes immediately (Windows) | Node.js or Python missing. Install both, restart PC, run again — or double-click **`START-OTKUP.bat`** to see the error message |
-| `npm` is not recognized (Windows) | Install Node.js LTS from [nodejs.org](https://nodejs.org), restart computer |
+| `npm install` fails (Windows) | Use latest code with pre-built `frontend/dist` — only Python needed. Or install **Node.js 22 LTS**, restart PC, run `scripts\doctor.bat` to see the error log |
+| `start.bat` window closes immediately (Windows) | Double-click **`START-OTKUP.bat`** to see the error. Usually Python or (only when rebuilding UI) Node.js missing |
 | `env: bash\r: No such file or directory` (Mac) | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |
 | `npm` not found | Install Node.js LTS and restart terminal |
