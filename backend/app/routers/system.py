@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api", tags=["system"])
 
 @router.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": "0.2.1", "features": ["otkup-receipt"]}
 
 
 @router.get("/stats", response_model=DashboardStats)

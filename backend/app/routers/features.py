@@ -29,6 +29,7 @@ from app.schemas import (
 )
 from app.services.codes import purchase_total
 from app.services.pdf_otkup_list import build_otkup_list_pdf
+from app.services.pdf_otkup_receipt import build_otkup_receipt_pdf
 from app.services.pdf_priznanica import build_priznanica_pdf
 from app.services.system_print import PrintError, print_pdf_bytes
 from app.services.validation import has_blocking_errors, validate_fruit_purchase
@@ -253,6 +254,48 @@ def priznanica_print(
         raise HTTPException(503, str(exc)) from exc
 
     return {"ok": True, "message": "Priznanica poslata na podrazumevani štampač."}
+
+
+def _build_otkup_receipt_or_404(
+    db: Session,
+    *,
+    purchase_id: int,
+    location_code: str | None,
+) -> bytes:
+    try:
+        return build_otkup_receipt_pdf(db, purchase_id=purchase_id, location_code=location_code)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@router.get("/reports/otkup-receipt/pdf")
+def otkup_receipt_pdf(
+    purchase_id: int,
+    location_code: str | None = None,
+    db: Session = Depends(get_db),
+):
+    pdf_bytes = _build_otkup_receipt_or_404(db, purchase_id=purchase_id, location_code=location_code)
+    filename = f"otkup_receipt_{purchase_id}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/reports/otkup-receipt/print")
+def otkup_receipt_print(
+    purchase_id: int,
+    location_code: str | None = None,
+    db: Session = Depends(get_db),
+):
+    pdf_bytes = _build_otkup_receipt_or_404(db, purchase_id=purchase_id, location_code=location_code)
+    filename = f"otkup_receipt_{purchase_id}"
+    try:
+        print_pdf_bytes(pdf_bytes, job_name=filename)
+    except PrintError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return {"ok": True, "message": "Otkupni list poslat na štampač."}
 
 
 @router.get("/reports/otkup-list/pdf")

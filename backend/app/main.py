@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -36,8 +36,8 @@ if _FRONTEND_DIST.is_dir():
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
-        if full_path.startswith("api/"):
-            return {"detail": "Not found"}
+        if full_path.startswith("api/") or full_path == "api":
+            raise HTTPException(status_code=404, detail="API route not found")
         index = _FRONTEND_DIST / "index.html"
         if full_path and (_FRONTEND_DIST / full_path).is_file():
             return FileResponse(_FRONTEND_DIST / full_path)

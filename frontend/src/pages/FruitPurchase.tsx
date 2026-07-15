@@ -86,12 +86,12 @@ export function FruitPurchasePage() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  async function printOtkupList(purchaseDate: string, locationCode: string) {
-    const params = { purchase_date: purchaseDate, location_code: locationCode || undefined };
+  async function printOtkupReceipt(purchaseId: number, locationCode: string) {
+    const params = { purchase_id: purchaseId, location_code: locationCode || undefined };
     try {
-      await api.printOtkupList(params);
+      await api.printOtkupReceipt(params);
     } catch {
-      await printPdfInBrowser(api.otkupListPdfUrl(params));
+      await printPdfInBrowser(api.otkupReceiptPdfUrl(params));
     }
   }
 
@@ -110,8 +110,8 @@ export function FruitPurchasePage() {
       const res = await api.createPurchase(form);
       setSuccess("Otkup sačuvan.");
       if (res.warnings.length) setWarnings(res.warnings);
-      const savedDate = form.purchase_date;
       const savedLocation = form.location_code;
+      const savedPurchaseId = res.purchase.id;
       setForm((f) => ({
         ...f,
         ...emptyQty,
@@ -120,7 +120,12 @@ export function FruitPurchasePage() {
       }));
       load();
       if (autoPrint) {
-        await printOtkupList(savedDate, savedLocation);
+        try {
+          await printOtkupReceipt(savedPurchaseId, savedLocation);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Štampanje nije uspelo.";
+          setSuccess(`Otkup sačuvan. ${msg}`);
+        }
       }
     } catch (e) { setError(e instanceof Error ? e.message : "Greška"); }
   }
@@ -134,7 +139,7 @@ export function FruitPurchasePage() {
   return (
     <div className="panel">
       <h2>Otkup voća</h2>
-      <p className="subtitle">Unos sa proverama kao u starom programu. Posle čuvanja štampa se otkupni list za dan.</p>
+      <p className="subtitle">Unos sa proverama kao u starom programu. Posle čuvanja štampa se otkupni list za uneti otkup.</p>
       <ValidationBox messages={warnings} />
 
       <div className="form-grid">

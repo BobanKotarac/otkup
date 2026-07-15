@@ -259,6 +259,18 @@ export const api = {
     return request<{ ok: boolean; message: string }>(`/api/reports/otkup-list/print?${q}`, { method: "POST" });
   },
 
+  otkupReceiptPdfUrl: (params: { purchase_id: number; location_code?: string }) => {
+    const q = new URLSearchParams({ purchase_id: String(params.purchase_id) });
+    if (params.location_code) q.set("location_code", params.location_code);
+    return `${API_BASE}/api/reports/otkup-receipt/pdf?${q}`;
+  },
+
+  printOtkupReceipt: (params: { purchase_id: number; location_code?: string }) => {
+    const q = new URLSearchParams({ purchase_id: String(params.purchase_id) });
+    if (params.location_code) q.set("location_code", params.location_code);
+    return request<{ ok: boolean; message: string }>(`/api/reports/otkup-receipt/print?${q}`, { method: "POST" });
+  },
+
   listDebits: (params?: Record<string, string>) => {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";
     return request<GoodsDebit[]>(`/api/goods-debits${q}`);
