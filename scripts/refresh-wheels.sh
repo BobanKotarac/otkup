@@ -2,7 +2,7 @@
 # Maintainer script: refresh backend/wheels/ for Windows 32-bit and 64-bit
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-REQ="$ROOT/backend/requirements-windows.txt"
+REQ="$ROOT/backend/requirements-windows-core.txt"
 OUT="$ROOT/backend/wheels"
 PY="${PYTHON:-python3}"
 
