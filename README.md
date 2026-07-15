@@ -71,7 +71,7 @@ Or double-click **`START-OTKUP.bat`** in the project folder (easier — window s
 
 Open **http://localhost:8000** in Chrome or Edge.
 
-**Requirements on Windows:** **Python 3** is enough for daily use (`py -3`). Node.js is only needed if you rebuild the frontend yourself.
+**Requirements on Windows:** **Python 3** only (`py -3`). AppData install is fine — the script does not use a virtual environment.
 
 **If `npm install` fails:** pull the latest version — the repo includes a pre-built UI in `frontend/dist`, so npm is skipped automatically.
 
@@ -198,7 +198,7 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 | Problem | Solution |
 |---------|----------|
 | `npm install` fails (Windows) | Use latest code with pre-built `frontend/dist` — only Python needed |
-| Python venv / subprocess error (Windows) | Reinstall Python **for all users** to `C:\Python312` (no spaces). Delete `backend\.venv`, run again. Send **`otkup-start.log`** from project folder |
+| Python venv / subprocess error (Windows) | Latest `start.bat` skips venv — AppData Python is OK. Run `git pull`, delete `backend\.venv` if it exists, try again |
 | `start.bat` window closes immediately (Windows) | Double-click **`START-OTKUP.bat`** — errors stay on screen. Check **`otkup-start.log`** |
 | `env: bash\r: No such file or directory` (Mac) | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |
