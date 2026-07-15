@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type BalanceRow, type FruitPurchase, type GoodsDebit, type PackagingRecord, type PurchaseLocation } from "../api";
 import { Field } from "../components/Form";
 
+const today = new Date().toISOString().slice(0, 10);
+
 function useDateFilters() {
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
   const [locationCode, setLocationCode] = useState("");
   const [locations, setLocations] = useState<PurchaseLocation[]>([]);
 
@@ -98,7 +100,7 @@ export function ReportBalancePage() {
   return (
     <div className="panel">
       <h2>Pregled salda</h2>
-      <p className="subtitle">Saldo = vrednost otkupa − vrednost zaduženja po proizvođaču.</p>
+      <p className="subtitle">Saldo = vrednost otkupa − vrednost zaduženja po proizvođaču (u izabranom periodu).</p>
       <FilterBar filters={filters} onRefresh={load} />
       <table className="data-table">
         <thead><tr><th>Proizvođač</th><th>Otkup</th><th>Zaduženje</th><th>Saldo</th></tr></thead>

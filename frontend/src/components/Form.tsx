@@ -59,3 +59,37 @@ export function SuccessMessage({ message }: { message: string | null }) {
   if (!message) return null;
   return <p className="success">{message}</p>;
 }
+
+interface NumberInputProps {
+  value: number;
+  onChange: (value: number) => void;
+  placeholder?: string;
+  step?: string | number;
+  min?: number;
+  readOnly?: boolean;
+}
+
+/** Shows empty field with placeholder instead of 0 — easier data entry. */
+export function NumberInput({
+  value,
+  onChange,
+  placeholder = "0",
+  step,
+  min,
+  readOnly,
+}: NumberInputProps) {
+  return (
+    <input
+      type="number"
+      step={step}
+      min={min}
+      readOnly={readOnly}
+      placeholder={placeholder}
+      value={readOnly ? value : value === 0 ? "" : value}
+      onChange={(e) => {
+        const raw = e.target.value;
+        onChange(raw === "" ? 0 : Number(raw));
+      }}
+    />
+  );
+}

@@ -28,6 +28,7 @@ from app.schemas import (
     ValidationMessageSchema,
 )
 from app.services.codes import purchase_total
+from app.services.pdf_otkup_list import build_otkup_list_pdf
 from app.services.pdf_priznanica import build_priznanica_pdf
 from app.services.system_print import PrintError, print_pdf_bytes
 from app.services.validation import has_blocking_errors, validate_fruit_purchase
@@ -252,3 +253,33 @@ def priznanica_print(
         raise HTTPException(503, str(exc)) from exc
 
     return {"ok": True, "message": "Priznanica poslata na podrazumevani štampač."}
+
+
+@router.get("/reports/otkup-list/pdf")
+def otkup_list_pdf(
+    purchase_date: date,
+    location_code: str | None = None,
+    db: Session = Depends(get_db),
+):
+    pdf_bytes = build_otkup_list_pdf(db, purchase_date=purchase_date, location_code=location_code)
+    filename = f"otkup_list_{purchase_date.isoformat()}_{location_code or 'all'}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/reports/otkup-list/print")
+def otkup_list_print(
+    purchase_date: date,
+    location_code: str | None = None,
+    db: Session = Depends(get_db),
+):
+    pdf_bytes = build_otkup_list_pdf(db, purchase_date=purchase_date, location_code=location_code)
+    filename = f"otkup_list_{purchase_date.isoformat()}_{location_code or 'all'}"
+    try:
+        print_pdf_bytes(pdf_bytes, job_name=filename)
+    except PrintError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    return {"ok": True, "message": "Otkupni list poslat na štampač."}

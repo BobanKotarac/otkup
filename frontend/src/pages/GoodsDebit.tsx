@@ -25,8 +25,11 @@ export function GoodsDebitPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (form.location_code) api.listProducers(form.location_code).then(setProducers);
-    else setProducers([]);
+    api.listProducers().then((all) => {
+      if (!form.location_code) { setProducers(all); return; }
+      const filtered = all.filter((p) => p.location_code === form.location_code);
+      setProducers(filtered.length > 0 ? filtered : all);
+    });
   }, [form.location_code]);
 
   useEffect(() => {

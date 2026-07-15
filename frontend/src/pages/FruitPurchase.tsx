@@ -1,8 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type ValidationMessage } from "../api";
-import { ErrorMessage, Field, FormActions, SuccessMessage } from "../components/Form";
+import { api, type Producer, type ValidationMessage } from "../api";
+import { ErrorMessage, Field, FormActions, NumberInput, SuccessMessage } from "../components/Form";
+import { printPdfInBrowser } from "../utils/print";
 
 const today = new Date().toISOString().slice(0, 10);
+
+const emptyQty = {
+  qty_extra: 0, qty_class1: 0, qty_class2: 0, qty_class3: 0,
+  crates_prep: 0, crates_class1: 0, crates_class2: 0, crates_class3: 0,
+  packaging_taken: 0, packaging_returned: 0,
+};
 
 function ValidationBox({ messages }: { messages: ValidationMessage[] }) {
   if (!messages.length) return null;
@@ -17,16 +24,16 @@ function ValidationBox({ messages }: { messages: ValidationMessage[] }) {
 
 export function FruitPurchasePage() {
   const [purchases, setPurchases] = useState<Awaited<ReturnType<typeof api.listPurchases>>>([]);
-  const [producers, setProducers] = useState<Awaited<ReturnType<typeof api.listProducers>>>([]);
+  const [producers, setProducers] = useState<Producer[]>([]);
+  const [producerHint, setProducerHint] = useState(false);
   const [fruits, setFruits] = useState<Awaited<ReturnType<typeof api.listFruits>>>([]);
   const [locations, setLocations] = useState<Awaited<ReturnType<typeof api.listLocations>>>([]);
+  const [autoPrint, setAutoPrint] = useState(true);
   const [form, setForm] = useState({
     location_code: "", producer_code: "", fruit_code: "",
     purchase_date: today,
-    qty_extra: 0, qty_class1: 0, qty_class2: 0, qty_class3: 0,
-    crates_prep: 0, crates_class1: 0, crates_class2: 0, crates_class3: 0,
+    ...emptyQty,
     crate_weight_100g: 5,
-    packaging_taken: 0, packaging_returned: 0,
     document_no: "",
   });
   const [warnings, setWarnings] = useState<ValidationMessage[]>([]);
@@ -36,19 +43,31 @@ export function FruitPurchasePage() {
   const load = useCallback(() => {
     api.listLocations().then(setLocations);
     api.listFruits().then(setFruits);
-    api.listPurchases().then(setPurchases).catch((e: Error) => setError(e.message));
-  }, []);
+    api.listPurchases({ date_from: form.purchase_date, date_to: form.purchase_date }).then(setPurchases).catch((e: Error) => setError(e.message));
+  }, [form.purchase_date]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (form.location_code) api.listProducers(form.location_code).then(setProducers);
-    else setProducers([]);
+    api.listProducers().then((all) => {
+      if (!form.location_code) {
+        setProducers(all);
+        setProducerHint(false);
+        return;
+      }
+      const filtered = all.filter((p) => p.location_code === form.location_code);
+      setProducers(filtered.length > 0 ? filtered : all);
+      setProducerHint(filtered.length === 0 && all.length > 0);
+    });
   }, [form.location_code]);
 
   useEffect(() => {
-    if (!form.location_code && locations.length) setForm((f) => ({ ...f, location_code: locations[0].code }));
-    if (!form.fruit_code && fruits.length) setForm((f) => ({ ...f, fruit_code: fruits[0].code }));
+    if (!form.location_code && locations.length) {
+      setForm((f) => ({ ...f, location_code: locations[0].code }));
+    }
+    if (!form.fruit_code && fruits.length) {
+      setForm((f) => ({ ...f, fruit_code: fruits[0].code }));
+    }
   }, [locations, fruits, form.location_code, form.fruit_code]);
 
   useEffect(() => {
@@ -59,13 +78,21 @@ export function FruitPurchasePage() {
     return () => clearTimeout(t);
   }, [form]);
 
-  function set(key: string, value: string | number) {
-    setForm((f) => ({
-      ...f,
-      [key]: typeof f[key as keyof typeof f] === "number" && (key.startsWith("qty") || key.startsWith("crates") || key.includes("packaging") || key.includes("crate_weight") || key === "document_no")
-        ? (key === "document_no" ? value : Number(value))
-        : value,
-    }));
+  function setNum(key: keyof typeof form, value: number) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function setStr(key: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function printOtkupList(purchaseDate: string, locationCode: string) {
+    const params = { purchase_date: purchaseDate, location_code: locationCode || undefined };
+    try {
+      await api.printOtkupList(params);
+    } catch {
+      await printPdfInBrowser(api.otkupListPdfUrl(params));
+    }
   }
 
   async function save() {
@@ -83,13 +110,18 @@ export function FruitPurchasePage() {
       const res = await api.createPurchase(form);
       setSuccess("Otkup sačuvan.");
       if (res.warnings.length) setWarnings(res.warnings);
+      const savedDate = form.purchase_date;
+      const savedLocation = form.location_code;
       setForm((f) => ({
         ...f,
-        qty_extra: 0, qty_class1: 0, qty_class2: 0, qty_class3: 0,
-        crates_prep: 0, crates_class1: 0, crates_class2: 0, crates_class3: 0,
-        packaging_taken: 0, packaging_returned: 0, document_no: "",
+        ...emptyQty,
+        document_no: "",
+        producer_code: f.producer_code,
       }));
       load();
+      if (autoPrint) {
+        await printOtkupList(savedDate, savedLocation);
+      }
     } catch (e) { setError(e instanceof Error ? e.message : "Greška"); }
   }
 
@@ -97,65 +129,78 @@ export function FruitPurchasePage() {
   const totalKg = form.qty_extra + form.qty_class1 + form.qty_class2 + form.qty_class3;
   const netKg = Math.max(totalKg - totalCrates * form.crate_weight_100g * 0.1, 0);
 
+  const locationName = (code: string) => locations.find((l) => l.code === code)?.name ?? code;
+
   return (
     <div className="panel">
       <h2>Otkup voća</h2>
-      <p className="subtitle">Unos sa proverama kao u starom programu (dupli otkup, težina gajbi).</p>
+      <p className="subtitle">Unos sa proverama kao u starom programu. Posle čuvanja štampa se otkupni list za dan.</p>
       <ValidationBox messages={warnings} />
 
       <div className="form-grid">
         <Field label="Otkupno mesto">
-          <select value={form.location_code} onChange={(e) => set("location_code", e.target.value)}>
+          <select value={form.location_code} onChange={(e) => setStr("location_code", e.target.value)}>
             {locations.map((l) => <option key={l.id} value={l.code}>{l.name}</option>)}
           </select>
         </Field>
         <Field label="Proizvođač *">
-          <select value={form.producer_code} onChange={(e) => set("producer_code", e.target.value)}>
+          <select value={form.producer_code} onChange={(e) => setStr("producer_code", e.target.value)}>
             <option value="">— izaberite —</option>
-            {producers.map((p) => <option key={p.id} value={p.code}>{p.name} ({p.code})</option>)}
+            {producers.map((p) => (
+              <option key={p.id} value={p.code}>{p.name} ({p.code}) — {locationName(p.location_code)}</option>
+            ))}
           </select>
         </Field>
         <Field label="Voće *">
-          <select value={form.fruit_code} onChange={(e) => set("fruit_code", e.target.value)}>
+          <select value={form.fruit_code} onChange={(e) => setStr("fruit_code", e.target.value)}>
             {fruits.map((f) => <option key={f.id} value={f.code}>{f.name}</option>)}
           </select>
         </Field>
-        <Field label="Datum"><input type="date" value={form.purchase_date} onChange={(e) => set("purchase_date", e.target.value)} /></Field>
-        <Field label="Dokument"><input value={String(form.document_no)} onChange={(e) => set("document_no", e.target.value)} /></Field>
+        <Field label="Datum"><input type="date" value={form.purchase_date} onChange={(e) => setStr("purchase_date", e.target.value)} /></Field>
+        <Field label="Dokument"><input value={form.document_no} placeholder="broj dokumenta" onChange={(e) => setStr("document_no", e.target.value)} /></Field>
       </div>
+
+      {producerHint && (
+        <p className="hint">Nema proizvođača za izabrano mesto — prikazana su sva mesta. Proverite mesto kod proizvođača u šifarniku.</p>
+      )}
 
       <h3>Količine (kg)</h3>
       <div className="form-grid">
-        <Field label="Prep. klasa"><input type="number" step="0.01" value={form.qty_extra} onChange={(e) => set("qty_extra", e.target.value)} /></Field>
-        <Field label="I klasa"><input type="number" step="0.01" value={form.qty_class1} onChange={(e) => set("qty_class1", e.target.value)} /></Field>
-        <Field label="II klasa"><input type="number" step="0.01" value={form.qty_class2} onChange={(e) => set("qty_class2", e.target.value)} /></Field>
-        <Field label="III klasa"><input type="number" step="0.01" value={form.qty_class3} onChange={(e) => set("qty_class3", e.target.value)} /></Field>
+        <Field label="Prep. klasa"><NumberInput value={form.qty_extra} onChange={(v) => setNum("qty_extra", v)} step="0.01" /></Field>
+        <Field label="I klasa"><NumberInput value={form.qty_class1} onChange={(v) => setNum("qty_class1", v)} step="0.01" /></Field>
+        <Field label="II klasa"><NumberInput value={form.qty_class2} onChange={(v) => setNum("qty_class2", v)} step="0.01" /></Field>
+        <Field label="III klasa"><NumberInput value={form.qty_class3} onChange={(v) => setNum("qty_class3", v)} step="0.01" /></Field>
       </div>
 
       <h3>Gajbe</h3>
       <div className="form-grid">
-        <Field label="Prep. gajbe"><input type="number" value={form.crates_prep} onChange={(e) => set("crates_prep", e.target.value)} /></Field>
-        <Field label="I klasa gajbe"><input type="number" value={form.crates_class1} onChange={(e) => set("crates_class1", e.target.value)} /></Field>
-        <Field label="II klasa gajbe"><input type="number" value={form.crates_class2} onChange={(e) => set("crates_class2", e.target.value)} /></Field>
-        <Field label="III klasa gajbe"><input type="number" value={form.crates_class3} onChange={(e) => set("crates_class3", e.target.value)} /></Field>
-        <Field label="Težina gajbe (×100g)"><input type="number" value={form.crate_weight_100g} onChange={(e) => set("crate_weight_100g", e.target.value)} /></Field>
+        <Field label="Prep. gajbe"><NumberInput value={form.crates_prep} onChange={(v) => setNum("crates_prep", v)} /></Field>
+        <Field label="I klasa gajbe"><NumberInput value={form.crates_class1} onChange={(v) => setNum("crates_class1", v)} /></Field>
+        <Field label="II klasa gajbe"><NumberInput value={form.crates_class2} onChange={(v) => setNum("crates_class2", v)} /></Field>
+        <Field label="III klasa gajbe"><NumberInput value={form.crates_class3} onChange={(v) => setNum("crates_class3", v)} /></Field>
+        <Field label="Težina gajbe (×100g)"><NumberInput value={form.crate_weight_100g} onChange={(v) => setNum("crate_weight_100g", v)} placeholder="5" /></Field>
         <Field label="Neto kg (posle tare)"><input readOnly value={netKg.toFixed(2)} /></Field>
       </div>
 
       <h3>Ambalaža</h3>
       <div className="form-grid">
-        <Field label="Amb. uzeta"><input type="number" value={form.packaging_taken} onChange={(e) => set("packaging_taken", e.target.value)} /></Field>
-        <Field label="Amb. vraćena"><input type="number" value={form.packaging_returned} onChange={(e) => set("packaging_returned", e.target.value)} /></Field>
+        <Field label="Amb. uzeta"><NumberInput value={form.packaging_taken} onChange={(v) => setNum("packaging_taken", v)} /></Field>
+        <Field label="Amb. vraćena"><NumberInput value={form.packaging_returned} onChange={(v) => setNum("packaging_returned", v)} /></Field>
       </div>
+
+      <label className="checkbox-row">
+        <input type="checkbox" checked={autoPrint} onChange={(e) => setAutoPrint(e.target.checked)} />
+        Automatski štampaj otkupni list posle čuvanja
+      </label>
 
       <FormActions onSave={save} saveLabel="Sačuvaj otkup" />
       <ErrorMessage message={error} /><SuccessMessage message={success} />
 
-      <h3>Poslednji otkupi</h3>
+      <h3>Otkupi za {form.purchase_date}</h3>
       <table className="data-table">
         <thead><tr><th>Datum</th><th>Proizvođač</th><th>Voće</th><th>Količina</th><th>Vrednost</th></tr></thead>
         <tbody>
-          {purchases.slice(0, 20).map((p) => (
+          {purchases.map((p) => (
             <tr key={p.id}>
               <td>{p.purchase_date}</td><td>{p.producer_name}</td><td>{p.fruit_name}</td>
               <td>{(p.qty_extra + p.qty_class1 + p.qty_class2 + p.qty_class3).toFixed(2)} kg</td>
