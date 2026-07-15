@@ -197,8 +197,9 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 
 | Problem | Solution |
 |---------|----------|
-| `npm install` fails (Windows) | Use latest code with pre-built `frontend/dist` — only Python needed. Or install **Node.js 22 LTS**, restart PC, run `scripts\doctor.bat` to see the error log |
-| `start.bat` window closes immediately (Windows) | Double-click **`START-OTKUP.bat`** to see the error. Usually Python or (only when rebuilding UI) Node.js missing |
+| `npm install` fails (Windows) | Use latest code with pre-built `frontend/dist` — only Python needed |
+| Python venv / subprocess error (Windows) | Reinstall Python **for all users** to `C:\Python312` (no spaces). Delete `backend\.venv`, run again. Send **`otkup-start.log`** from project folder |
+| `start.bat` window closes immediately (Windows) | Double-click **`START-OTKUP.bat`** — errors stay on screen. Check **`otkup-start.log`** |
 | `env: bash\r: No such file or directory` (Mac) | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |
 | `npm` not found | Install Node.js LTS and restart terminal |

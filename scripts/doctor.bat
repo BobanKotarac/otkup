@@ -1,50 +1,43 @@
 @echo off
 setlocal EnableExtensions
 cd /d "%~dp0.."
+set "LOG=%CD%\otkup-start.log"
 
 echo ========================================
-echo   Otkup - system check
+echo   Otkup - Windows diagnostics
 echo ========================================
+echo Log: %LOG%
 echo.
 
-echo Project folder:
-cd
-echo.
+echo [Python]>> "%LOG%"
+py -3 --version 2>> "%LOG%" || python --version 2>> "%LOG%" || echo NOT FOUND
+py -3 --version 2>nul || python --version 2>nul || echo Python: NOT FOUND
 
-echo Python:
-py -3 --version 2>nul || python --version 2>nul || echo   NOT FOUND
 echo.
+echo [Node]>> "%LOG%"
+node --version 2>> "%LOG%" || echo NOT FOUND>> "%LOG%"
+node --version 2>nul || echo Node: NOT FOUND
 
-echo Node.js:
-node --version 2>nul || echo   NOT FOUND
 echo.
+echo [Frontend dist]>> "%LOG%"
+if exist frontend\dist\index.html (echo OK) else (echo MISSING)
 
-echo npm:
-npm --version 2>nul || echo   NOT FOUND
 echo.
-
-echo Frontend build (dist):
-if exist frontend\dist\index.html (
-    echo   OK - pre-built UI found
-) else (
-    echo   MISSING - npm install + build required
-)
-echo.
-
-echo Trying npm install (log: frontend\install.log)...
-cd frontend
-call npm install >install.log 2>&1
+echo [Test venv creation]>> "%LOG%"
+cd backend
+if exist .venv-test rmdir /s /q .venv-test
+py -3 -m venv .venv-test >> "%LOG%" 2>&1
 if errorlevel 1 (
-    echo   FAILED - open frontend\install.log for details
-    echo.
-    echo Last lines of log:
-    powershell -NoProfile -Command "Get-Content install.log -Tail 15"
+    echo VENV TEST: FAILED
+    echo See %LOG%
 ) else (
-    echo   OK
-    del install.log 2>nul
+    echo VENV TEST: OK
+    rmdir /s /q .venv-test
 )
 cd ..
 
 echo.
-echo Press any key to close...
-pause >nul
+echo --- Last 20 log lines ---
+powershell -NoProfile -Command "Get-Content '%LOG%' -Tail 20"
+echo.
+pause
