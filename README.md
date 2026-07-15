@@ -67,7 +67,11 @@ cd otkup
 scripts\start.bat
 ```
 
+Or double-click **`START-OTKUP.bat`** in the project folder (easier — window stays open if something fails).
+
 Open **http://localhost:8000** in Chrome or Edge.
+
+**Requirements on Windows:** Python 3 (`py -3`) and Node.js (`npm`) must be installed first. See [Requirements](#requirements).
 
 The first run installs dependencies and may take a few minutes. Later runs are faster.
 
@@ -191,7 +195,9 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 
 | Problem | Solution |
 |---------|----------|
-| `env: bash\r: No such file or directory` | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
+| `start.bat` window closes immediately (Windows) | Node.js or Python missing. Install both, restart PC, run again — or double-click **`START-OTKUP.bat`** to see the error message |
+| `npm` is not recognized (Windows) | Install Node.js LTS from [nodejs.org](https://nodejs.org), restart computer |
+| `env: bash\r: No such file or directory` (Mac) | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
 | `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |
 | `npm` not found | Install Node.js LTS and restart terminal |
 | Port 8000 already in use | Another app is using that port. Stop it: `lsof -ti :8000 \| xargs kill` — or run `PORT=8001 ./scripts/start.sh` |
