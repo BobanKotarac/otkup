@@ -14,7 +14,7 @@ Install these once on the machine:
 
 | Tool | Mac | Windows |
 |------|-----|---------|
-| **Python 3.11+** | [python.org](https://www.python.org/downloads/) or `brew install python` | [python.org](https://www.python.org/downloads/) — check **"Add Python to PATH"** |
+| **Python 3.11+** | [python.org](https://www.python.org/downloads/) or `brew install python` | [python.org](https://www.python.org/downloads/) — check **"Add Python to PATH"**. Run with `py -3` if `python` is not found |
 | **Node.js 18+** (LTS) | [nodejs.org](https://nodejs.org) or `brew install node` | [nodejs.org](https://nodejs.org) |
 | **Git** | `brew install git` | [git-scm.com](https://git-scm.com/download/win) |
 
@@ -123,11 +123,12 @@ Open http://localhost:5173
 **Terminal 1 — backend:**
 ```cmd
 cd backend
-python -m venv .venv
+py -3 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
+(Use `python` instead of `py -3` if `python` works on your PC.)
 
 **Terminal 2 — frontend:**
 ```cmd
@@ -191,7 +192,7 @@ DATABASE_URL=postgresql://otkup:otkup@localhost:5432/otkup
 | Problem | Solution |
 |---------|----------|
 | `env: bash\r: No such file or directory` | Run `perl -pi -e 's/\r\n/\n/g' scripts/start.sh` then try again |
-| `python` not found (Windows) | Reinstall Python with **Add to PATH** checked |
+| `python` not found (Windows) | Use `py -3` instead — `start.bat` tries this automatically. Or reinstall Python with **Add to PATH** checked |
 | `npm` not found | Install Node.js LTS and restart terminal |
 | Port 8000 already in use | Another app is using that port. Stop it: `lsof -ti :8000 \| xargs kill` — or run `PORT=8001 ./scripts/start.sh` |
 | Wrong app opens on localhost:8000 | Port 8000 is taken by a different project — use `PORT=8001 ./scripts/start.sh` |
