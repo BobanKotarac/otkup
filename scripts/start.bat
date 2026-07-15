@@ -96,6 +96,14 @@ exit /b %errorlevel%
 
 :packages_ok
 echo.
+echo Verifying install...
+%PY% -c "import fastapi, uvicorn, sqlalchemy, pydantic, reportlab, colorama; print('All packages OK')" 2>> "%LOG%"
+if errorlevel 1 (
+    echo Error: packages installed but import failed. See %LOG%
+    goto :pip_fail
+)
+
+echo.
 echo Packages OK.
 echo Starting http://localhost:8000
 echo Leave this window open. Ctrl+C to stop.
