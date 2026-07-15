@@ -61,23 +61,26 @@ if errorlevel 1 (
 )
 
 echo.
-echo Installing Python packages ^(first run may take 2-3 minutes^)...
+echo Installing Python packages from bundled wheels ^(no compiler needed^)...
 echo.
 
-%PY% -m pip install --user --upgrade pip wheel setuptools
-if errorlevel 1 (
-    echo pip upgrade warning - continuing...>> "%LOG%"
+if exist wheels\*.whl (
+    %PY% -m pip install --user --no-index --find-links=wheels -r requirements-windows.txt
+    if not errorlevel 1 goto :packages_ok
+    echo Local wheels failed, trying online install...>> "%LOG%"
 )
 
-%PY% -m pip install --user -r requirements-windows.txt
+echo Online install ^(needs internet^)...
+%PY% -m pip install --user --prefer-binary -r requirements-windows.txt
 if errorlevel 1 (
     echo.>> "%LOG%"
     echo --user install failed, retrying...>> "%LOG%"
-    echo.
-    echo Retrying install ^(without --user^)...
-    %PY% -m pip install -r requirements-windows.txt >> "%LOG%" 2>&1
+    echo Retrying without --user...
+    %PY% -m pip install --prefer-binary -r requirements-windows.txt >> "%LOG%" 2>&1
     if errorlevel 1 goto :pip_fail
 )
+
+:packages_ok
 
 echo.
 echo Packages OK.
@@ -99,11 +102,15 @@ echo PIP INSTALL FAILED>> "%LOG%"
 echo.
 echo Error: could not install Python packages.
 echo.
-echo Try this manually in Command Prompt:
-echo   cd %CD%
-echo   py -3 -m pip install -r requirements-windows.txt
+echo If you saw "Microsoft Visual C++ 14 required":
+echo   - Run: git pull  ^(latest version installs from bundled wheels^)
+echo   - Use Python 3.11, 3.12, or 3.13  ^(64-bit^) from python.org
 echo.
-echo If that fails too, send the file: otkup-start.log
+echo Manual test:
+echo   cd %CD%
+echo   py -3 -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+echo.
+echo Send otkup-start.log if it still fails.
 goto :show_log
 
 :show_log
