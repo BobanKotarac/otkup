@@ -10,7 +10,6 @@ echo.>> "%LOG%"
 echo ========================================
 echo   Otkup - starting...
 echo ========================================
-echo Log file: %LOG%
 echo.
 
 REM --- Python ---
@@ -27,101 +26,80 @@ if not errorlevel 1 (
     goto :have_python
 )
 echo Error: Python 3 not found.
-echo Install from https://www.python.org/downloads/
-echo Check "Add python.exe to PATH" during install.
+echo Install Python 3.12 from https://www.python.org/downloads/
 goto :fail
 
 :have_python
-echo Python OK ^(AppData install is fine^).
-echo.>> "%LOG%"
+echo.
 
 if exist frontend\dist\index.html (
-    echo Frontend OK ^(pre-built^).
-    goto :start_backend
+    echo Frontend OK.
+) else (
+    echo Error: frontend\dist missing. Run: git pull
+    goto :fail
 )
-echo Frontend build missing - run: git pull
-goto :fail
 
-:start_backend
 cd backend
 if errorlevel 1 goto :fail
 
-echo.
+if not exist wheels\*.whl (
+    echo Error: backend\wheels missing. Run: git pull
+    goto :fail
+)
+
 echo Checking pip...
 %PY% -m pip --version >> "%LOG%" 2>&1
 if errorlevel 1 (
-    echo pip missing - installing pip...
     %PY% -m ensurepip --upgrade >> "%LOG%" 2>&1
-    if errorlevel 1 (
-        echo Downloading pip installer...
-        powershell -NoProfile -Command "Invoke-WebRequest -Uri https://bootstrap.pypa.io/get-pip.py -OutFile get-pip.py" >> "%LOG%" 2>&1
-        %PY% get-pip.py --user >> "%LOG%" 2>&1
-        del get-pip.py 2>nul
-    )
 )
 
 echo.
-echo Installing Python packages from bundled wheels ^(no compiler needed^)...
+echo Installing packages from bundled wheels...
+echo ^(No compiler, no download - needs Python 3.11 / 3.12 / 3.13 64-bit^)
 echo.
 
-if exist wheels\*.whl (
-    %PY% -m pip install --user --no-index --find-links=wheels -r requirements-windows.txt
-    if not errorlevel 1 goto :packages_ok
-    echo Local wheels failed, trying online install...>> "%LOG%"
-)
-
-echo Online install ^(needs internet^)...
-%PY% -m pip install --user --prefer-binary -r requirements-windows.txt
+REM ONLY offline install - never compile from source (avoids Visual C++ / greenlet errors)
+%PY% -m pip install --user --no-index --find-links=wheels --only-binary=:all: -r requirements-windows.txt >> "%LOG%" 2>&1
 if errorlevel 1 (
-    echo.>> "%LOG%"
-    echo --user install failed, retrying...>> "%LOG%"
-    echo Retrying without --user...
-    %PY% -m pip install --prefer-binary -r requirements-windows.txt >> "%LOG%" 2>&1
-    if errorlevel 1 goto :pip_fail
+    echo.
+    echo --- install failed ---
+    powershell -NoProfile -Command "Get-Content '%LOG%' -Tail 20"
+    goto :pip_fail
 )
 
-:packages_ok
-
-echo.
 echo Packages OK.
-echo Starting Otkup on http://localhost:8000
-echo Open that in Chrome or Edge. Leave this window open. Ctrl+C to stop.
+echo.
+echo Starting http://localhost:8000
+echo Leave this window open. Ctrl+C to stop.
 echo.
 
 %PY% -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 if errorlevel 1 (
-    echo Server error.>> "%LOG%"
-    echo Error: server stopped or port 8000 is busy.
-    goto :show_log
+    echo Error: port 8000 busy or server crashed. See %LOG%
+    goto :fail
 )
 goto :eof
 
 :pip_fail
-echo.>> "%LOG%"
-echo PIP INSTALL FAILED>> "%LOG%"
 echo.
-echo Error: could not install Python packages.
+echo ========================================
+echo   Install failed
+echo ========================================
 echo.
-echo If you saw "Microsoft Visual C++ 14 required":
-echo   - Run: git pull  ^(latest version installs from bundled wheels^)
-echo   - Use Python 3.11, 3.12, or 3.13  ^(64-bit^) from python.org
+echo Most likely: wrong Python version.
 echo.
-echo Manual test:
-echo   cd %CD%
-echo   py -3 -m pip install --no-index --find-links=wheels -r requirements-windows.txt
+echo Need Python 3.11, 3.12, or 3.13  ^(64-bit^), from python.org
+echo Check version:  py -3 --version
+echo List installed:  py -0p
 echo.
-echo Send otkup-start.log if it still fails.
-goto :show_log
-
-:show_log
+echo If you have 3.12 installed but default is older:
+echo   py -3.12 -m pip install --user --no-index --find-links=wheels -r requirements-windows.txt
+echo   py -3.12 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 echo.
-echo --- Last lines from log ---
-powershell -NoProfile -Command "Get-Content '%LOG%' -Tail 30"
+echo Full log: %LOG%
 goto :fail
 
 :fail
 echo.
-echo Full log: %LOG%
-echo Press any key to close...
-pause >nul
+pause
 exit /b 1
